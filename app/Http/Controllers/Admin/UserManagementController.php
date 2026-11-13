@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\Form;
 use App\Models\User;
 use App\Services\ActivityLogService;
 use Illuminate\Http\RedirectResponse;
@@ -17,9 +18,35 @@ class UserManagementController extends Controller
 {
     public function index(): View
     {
-        $users = User::whereHas('role', fn ($q) => $q->where('name', Role::USER))->withCount('assignedForms')->orderBy('name')->paginate(15);
+        $globalPublishedFormsCount = Form::where('status', Form::STATUS_PUBLISHED)
+            ->where('visibility', 'all')
+            ->count();
+        $users = User::whereHas('role', fn ($q) => $q->where('name', Role::USER))
+            ->withCount(['assignedForms as selected_published_forms_count' => fn ($q) => $q
+                ->where('forms.status', Form::STATUS_PUBLISHED)
+                ->where('forms.visibility', 'selected')])
+            ->orderBy('name')
+            ->paginate(15);
+        $users->getCollection()->each(function (User $user) use ($globalPublishedFormsCount) {
+            $user->displayed_forms_count = $globalPublishedFormsCount + $user->selected_published_forms_count;
+        });
 
         return view('admin.users.index', compact('users'));
+    }
+
+    public function displayedForms(User $user): View
+    {
+        abort_unless($user->isUser(), 404);
+
+        $forms = Form::where('status', Form::STATUS_PUBLISHED)
+            ->where(function ($query) use ($user) {
+                $query->where('visibility', 'all')
+                    ->orWhereHas('assignedUsers', fn ($users) => $users->whereKey($user->id));
+            })
+            ->orderBy('title')
+            ->get();
+
+        return view('admin.users.displayed-forms', compact('user', 'forms'));
     }
 
     public function create(): View

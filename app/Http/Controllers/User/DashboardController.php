@@ -14,7 +14,12 @@ class DashboardController extends Controller
     {
         $userId = $request->user()->id;
 
-        $publishedFormsCount = Form::where('status', 'published')->count();
+        $publishedFormsCount = Form::where('status', 'published')
+            ->where(function ($query) use ($userId) {
+                $query->where('visibility', 'all')
+                    ->orWhereHas('assignedUsers', fn ($users) => $users->whereKey($userId));
+            })
+            ->count();
 
         $submissionCounts = FormSubmission::query()
             ->where('user_id', $userId)

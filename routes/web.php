@@ -31,6 +31,7 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
         Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::patch('settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::resource('users', UserManagementController::class)->except(['show', 'destroy']);
+        Route::get('users/{user}/forms', [UserManagementController::class, 'displayedForms'])->name('users.forms');
         Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
         Route::patch('users/{user}/status', [UserManagementController::class, 'status'])->name('users.status');
 
